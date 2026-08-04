@@ -13,12 +13,16 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
 import springfox.documentation.builders.ApiInfoBuilder;
+import springfox.documentation.builders.ParameterBuilder;
 import springfox.documentation.builders.PathSelectors;
 import springfox.documentation.builders.RequestHandlerSelectors;
+import springfox.documentation.schema.ModelRef;
 import springfox.documentation.service.ApiInfo;
+import springfox.documentation.service.Parameter;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -55,8 +59,19 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
                 .version("2.0")
                 .description("苍穹外卖项目接口文档")
                 .build();
+
+        // 配置全局 token 请求头，解决 Knife4j 接口调用 401 问题
+        ParameterBuilder tokenPar = new ParameterBuilder();
+        List<Parameter> globalParams = new ArrayList<>();
+        tokenPar.name("token").description("令牌")
+                .modelRef(new ModelRef("string"))
+                .parameterType("header")
+                .required(false).build();
+        globalParams.add(tokenPar.build());
+
         Docket docket = new Docket(DocumentationType.SWAGGER_2)
                 .apiInfo(apiInfo)
+                .globalOperationParameters(globalParams)
                 .select()
                 .apis(RequestHandlerSelectors.basePackage("com.sky.controller"))
                 .paths(PathSelectors.any())
