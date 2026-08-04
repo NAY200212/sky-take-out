@@ -5,6 +5,7 @@ import com.sky.interceptor.JwtTokenAdminInterceptor;
 import com.sky.json.JacksonObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.HttpMessageConverter;
@@ -13,16 +14,18 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
 import springfox.documentation.builders.ApiInfoBuilder;
-import springfox.documentation.builders.ParameterBuilder;
 import springfox.documentation.builders.PathSelectors;
 import springfox.documentation.builders.RequestHandlerSelectors;
-import springfox.documentation.schema.ModelRef;
 import springfox.documentation.service.ApiInfo;
-import springfox.documentation.service.Parameter;
+import springfox.documentation.service.ApiKey;
+import springfox.documentation.service.AuthorizationScope;
+import springfox.documentation.service.SecurityReference;
+import springfox.documentation.service.SecurityScheme;
 import springfox.documentation.spi.DocumentationType;
+import springfox.documentation.spi.service.contexts.SecurityContext;
 import springfox.documentation.spring.web.plugins.Docket;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -34,6 +37,9 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
 
     @Autowired
     private JwtTokenAdminInterceptor jwtTokenAdminInterceptor;
+
+    @Value("${sky.upload.local-path}")
+    private String uploadPath;
 
     /**
      * 注册自定义拦截器
@@ -60,18 +66,21 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
                 .description("苍穹外卖项目接口文档")
                 .build();
 
-        // 配置全局 token 请求头，解决 Knife4j 接口调用 401 问题
-        ParameterBuilder tokenPar = new ParameterBuilder();
-        List<Parameter> globalParams = new ArrayList<>();
-        tokenPar.name("token").description("令牌")
-                .modelRef(new ModelRef("string"))
-                .parameterType("header")
-                .required(false).build();
-        globalParams.add(tokenPar.build());
+        // 配置全局 token 认证，Knife4j 页面会显示 "Authorize" 按钮
+        ApiKey apiKey = new ApiKey("token", "token", "header");
+        List<SecurityScheme> securitySchemes = Collections.singletonList(apiKey);
+
+        SecurityContext securityContext = SecurityContext.builder()
+                .securityReferences(Collections.singletonList(
+                        new SecurityReference("token", new AuthorizationScope[0])
+                ))
+                .forPaths(PathSelectors.regex("^(?!/admin/employee/login).*"))
+                .build();
 
         Docket docket = new Docket(DocumentationType.SWAGGER_2)
                 .apiInfo(apiInfo)
-                .globalOperationParameters(globalParams)
+                .securitySchemes(securitySchemes)
+                .securityContexts(Collections.singletonList(securityContext))
                 .select()
                 .apis(RequestHandlerSelectors.basePackage("com.sky.controller"))
                 .paths(PathSelectors.any())
@@ -87,6 +96,7 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
         log.info("开始设置静态资源映射…");
         registry.addResourceHandler("/doc.html").addResourceLocations("classpath:/META-INF/resources/");
         registry.addResourceHandler("/webjars/**").addResourceLocations("classpath:/META-INF/resources/webjars/");
+        registry.addResourceHandler("/upload/**").addResourceLocations("file:" + uploadPath + "/");
     }
 
     @Override
