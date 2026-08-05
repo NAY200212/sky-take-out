@@ -55,18 +55,17 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
     }
 
     /**
-     * 通过knife4j生成接口文档
+     * 接口文档
      * @return
      */
     @Bean
-    public Docket docket() {
+    public Docket docket1() {
         ApiInfo apiInfo = new ApiInfoBuilder()
                 .title("苍穹外卖项目接口文档")
                 .version("2.0")
-                .description("苍穹外卖项目接口文档")
+                .description("苍穹外卖接口文档")
                 .build();
 
-        // 配置全局 token 认证，Knife4j 页面会显示 "Authorize" 按钮
         ApiKey apiKey = new ApiKey("token", "token", "header");
         List<SecurityScheme> securitySchemes = Collections.singletonList(apiKey);
 
@@ -74,20 +73,36 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
                 .securityReferences(Collections.singletonList(
                         new SecurityReference("token", new AuthorizationScope[0])
                 ))
-                .forPaths(PathSelectors.regex("^(?!/admin/employee/login).*"))
+                .forPaths(PathSelectors.ant("/admin/**"))
                 .build();
 
-        Docket docket = new Docket(DocumentationType.SWAGGER_2)
+        return new Docket(DocumentationType.SWAGGER_2)
+                .groupName("管理端")
                 .apiInfo(apiInfo)
                 .securitySchemes(securitySchemes)
                 .securityContexts(Collections.singletonList(securityContext))
                 .select()
-                .apis(RequestHandlerSelectors.basePackage("com.sky.controller"))
+                .apis(RequestHandlerSelectors.basePackage("com.sky.controller.admin"))
                 .paths(PathSelectors.any())
                 .build();
-        return docket;
     }
 
+    @Bean
+    public Docket docket2() {
+        ApiInfo apiInfo = new ApiInfoBuilder()
+                .title("苍穹外卖项目接口文档")
+                .version("2.0")
+                .description("苍穹外卖接口文档")
+                .build();
+
+        return new Docket(DocumentationType.SWAGGER_2)
+                .groupName("用户端")
+                .apiInfo(apiInfo)
+                .select()
+                .apis(RequestHandlerSelectors.basePackage("com.sky.controller.user"))
+                .paths(PathSelectors.any())
+                .build();
+    }
     /**
      * 设置静态资源映射
      * @param registry
