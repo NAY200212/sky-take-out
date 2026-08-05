@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>苍穹外卖</title>
+  <link rel="icon" href="logo.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 登录页 -->
+    <div id="page-login" class="page active">
+      <div class="login-container">
+        <div class="login-logo">
+          <img class="logo-icon" src="logo.png" alt="logo">
+          <h1>苍穹外卖</h1>
+          <p>美味即刻送达</p>
+        </div>
+        <div class="login-form">
+          <input type="text" id="login-nickname" placeholder="请输入您的昵称或编号" autocomplete="off">
+          <button id="btn-login" class="btn-primary">进入点餐</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 首页 -->
+    <div id="page-home" class="page">
+      <div class="home-header">
+        <div class="header-title">苍穹外卖</div>
+        <div class="header-user" id="header-user"></div>
+      </div>
+      <div class="home-content">
+        <div class="category-sidebar" id="category-sidebar"></div>
+        <div class="dish-area" id="dish-area">
+          <div class="dish-empty">请选择左侧分类</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 购物车页 -->
+    <div id="page-cart" class="page">
+      <div class="page-header">
+        <div class="back-btn" data-page="home">←</div>
+        <div class="header-title">购物车</div>
+        <div class="header-action" id="btn-clear-cart">清空</div>
+      </div>
+      <div class="cart-list" id="cart-list">
+        <div class="empty-state">购物车空空如也</div>
+      </div>
+      <div class="cart-footer" id="cart-footer" style="display:none;">
+        <div class="cart-total">
+          <span class="total-label">合计：</span>
+          <span class="total-price" id="cart-total-price">¥0.00</span>
+        </div>
+        <button class="btn-primary" id="btn-checkout">去结算</button>
+      </div>
+    </div>
+
+    <!-- 结算页 -->
+    <div id="page-checkout" class="page">
+      <div class="page-header">
+        <div class="back-btn" data-page="cart">←</div>
+        <div class="header-title">确认下单</div>
+        <div></div>
+      </div>
+      <div class="checkout-content">
+        <div class="checkout-section">
+          <div class="checkout-label">订单金额</div>
+          <div class="checkout-amount" id="checkout-amount">¥0.00</div>
+        </div>
+        <div class="checkout-section" id="checkout-address-section">
+          <div class="checkout-label">收货地址</div>
+          <div class="checkout-address-select" id="checkout-address">
+            <div class="address-loading">加载地址中...</div>
+          </div>
+        </div>
+        <div class="checkout-section">
+          <div class="checkout-label">备注</div>
+          <textarea id="checkout-remark" placeholder="选填，如有特殊要求请备注"></textarea>
+        </div>
+        <button class="btn-primary btn-block" id="btn-submit-order">确认下单</button>
+      </div>
+    </div>
+
+    <!-- KBZPay 支付页 -->
+    <div id="page-kbzpay" class="page">
+      <div class="page-header">
+        <div class="back-btn" data-page="checkout">←</div>
+        <div class="header-title">KBZPay 支付</div>
+        <div></div>
+      </div>
+      <div class="kbzpay-content">
+        <div class="kbzpay-card">
+          <div class="kbzpay-header">
+            <div class="kbzpay-logo">KBZPay</div>
+            <div class="kbzpay-amount-info">
+              <div class="kbzpay-label">支付金额</div>
+              <div class="kbzpay-amount" id="kbzpay-amount">¥0.00</div>
+            </div>
+          </div>
+          <div class="kbzpay-body">
+            <div class="kbzpay-qr-section" id="kbzpay-qr-section">
+              <div class="kbzpay-qr-box">
+                <div class="kbzpay-qr-code"></div>
+                <div class="kbzpay-timer" id="kbzpay-timer">剩余 05:00</div>
+              </div>
+              <div class="kbzpay-qr-hint">请使用 KBZPay App 扫描二维码完成支付</div>
+            </div>
+            <div class="kbzpay-sim-section" id="kbzpay-sim-section" style="display:none;">
+              <div class="kbzpay-spinner"></div>
+              <div class="kbzpay-sim-text">正在处理支付...</div>
+            </div>
+            <div class="kbzpay-success-section" id="kbzpay-success-section" style="display:none;">
+              <div class="kbzpay-success-icon">✓</div>
+              <div class="kbzpay-success-text">支付成功</div>
+              <div class="kbzpay-success-amount" id="kbzpay-success-amount">¥0.00</div>
+            </div>
+            <div class="kbzpay-actions">
+              <button class="btn-primary" id="btn-kbzpay-confirm" style="display:none;">确认支付（模拟）</button>
+              <button class="btn-kbzpay-cancel" id="btn-kbzpay-cancel">取消支付</button>
+              <button class="btn-primary" id="btn-kbzpay-done" style="display:none;">查看订单</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 订单详情页 -->
+    <div id="page-order-detail" class="page">
+      <div class="page-header">
+        <div class="back-btn" data-page="orders">←</div>
+        <div class="header-title">订单详情</div>
+        <div></div>
+      </div>
+      <div class="order-detail-content" id="order-detail-content">
+        <div class="empty-state">加载中...</div>
+      </div>
+    </div>
+
+    <!-- 订单页 -->
+    <div id="page-orders" class="page">
+      <div class="page-header">
+        <div class="back-btn" data-page="home">←</div>
+        <div class="header-title">我的订单</div>
+        <div></div>
+      </div>
+      <div class="orders-filter">
+        <button class="filter-btn active" data-status="">全部</button>
+        <button class="filter-btn" data-status="1">待付款</button>
+        <button class="filter-btn" data-status="2">待接单</button>
+        <button class="filter-btn" data-status="3">已接单</button>
+        <button class="filter-btn" data-status="4">派送中</button>
+        <button class="filter-btn" data-status="5">已完成</button>
+        <button class="filter-btn" data-status="6">已取消</button>
+      </div>
+      <div class="orders-list" id="orders-list">
+        <div class="empty-state">暂无订单</div>
+      </div>
+    </div>
+
+    <!-- 地址管理页 -->
+    <div id="page-address" class="page">
+      <div class="page-header">
+        <div class="back-btn" data-page="home">←</div>
+        <div class="header-title">收货地址</div>
+        <div class="header-action" id="btn-add-address">新增</div>
+      </div>
+      <div class="address-list" id="address-list">
+        <div class="empty-state">暂无收货地址</div>
+      </div>
+    </div>
+
+    <!-- 地址表单页 -->
+    <div id="page-address-form" class="page">
+      <div class="page-header">
+        <div class="back-btn" data-page="address">←</div>
+        <div class="header-title" id="address-form-title">新增地址</div>
+        <div></div>
+      </div>
+      <div class="address-form-content">
+        <div class="form-group">
+          <label>收货人</label>
+          <input type="text" id="addr-consignee" placeholder="请输入收货人姓名">
+        </div>
+        <div class="form-group">
+          <label>手机号</label>
+          <input type="tel" id="addr-phone" placeholder="请输入手机号">
+        </div>
+        <div class="form-group">
+          <label>性别</label>
+          <div class="radio-group">
+            <label class="radio-item"><input type="radio" name="addr-sex" value="1" checked> 先生</label>
+            <label class="radio-item"><input type="radio" name="addr-sex" value="0"> 女士</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>详细地址</label>
+          <input type="text" id="addr-detail" placeholder="请输入详细地址">
+        </div>
+        <div class="form-group">
+          <label>标签</label>
+          <input type="text" id="addr-label" placeholder="如：家、公司、学校">
+        </div>
+        <button class="btn-primary" id="btn-save-address">保存</button>
+        <input type="hidden" id="addr-edit-id" value="">
+      </div>
+    </div>
+
+    <!-- 详情弹窗 -->
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal-content" id="modal-content"></div>
+    </div>
+
+    <!-- 底部导航 -->
+    <nav class="bottom-nav" id="bottom-nav" style="display:none;">
+      <div class="nav-item active" data-page="home">
+        <div class="nav-icon nav-icon-home"></div>
+        <span>首页</span>
+      </div>
+      <div class="nav-item" data-page="cart">
+        <div class="nav-icon nav-icon-cart"></div>
+        <span>购物车</span>
+        <span class="cart-badge" id="cart-badge" style="display:none;">0</span>
+      </div>
+      <div class="nav-item" data-page="orders">
+        <div class="nav-icon nav-icon-orders"></div>
+        <span>订单</span>
+      </div>
+      <div class="nav-item" data-page="logout">
+        <div class="nav-icon nav-icon-logout"></div>
+        <span>退出</span>
+      </div>
+    </nav>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
