@@ -45,6 +45,13 @@ sky:
     admin-ttl: 7200000000000000000
     # 设置前端传递过来的令牌名称
     admin-token-name: token
+    user-secret-key: itheima
+    user-ttl: 7200000
+    user-token-name: authentication
 
+  shop:
+    address: 北京市海淀区
+  baidu:
+    ak: demo-ak
   upload:
     local-path: /Users/mimashi0000/Desktop/sky-upload
