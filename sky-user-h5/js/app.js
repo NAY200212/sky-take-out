@@ -27,9 +27,7 @@
     home: $('#page-home'),
     cart: $('#page-cart'),
     checkout: $('#page-checkout'),
-    kbzpay: $('#page-kbzpay'),
     orders: $('#page-orders'),
-    'order-detail': $('#page-order-detail'),
     address: $('#page-address'),
     'address-form': $('#page-address-form'),
   };
@@ -40,7 +38,7 @@
     pages[name].classList.add('active');
 
     const bottomNav = $('#bottom-nav');
-    if (name === 'login' || name === 'kbzpay' || name === 'order-detail' || name === 'address-form') {
+    if (name === 'login') {
       bottomNav.style.display = 'none';
     } else {
       bottomNav.style.display = 'flex';
@@ -222,32 +220,14 @@
     const dish = state.dishes.find((d) => d.id === dishId);
     if (!dish) return;
 
-    // 解析口味数据：后端返回 [{name: "辣度", value: '["不辣","微辣"]'}, ...]
-    const rawFlavors = dish.flavors || [];
-    let flavorGroups = [];
-    if (rawFlavors.length > 0) {
-      flavorGroups = rawFlavors.map((group) => {
-        let options = [];
-        try {
-          options = JSON.parse(group.value);
-        } catch (e) {
-          options = [group.value];
-        }
-        return { name: group.name, options: options };
-      });
-    } else {
-      // 无口味数据时，提供默认辣度选项（4-5种）
-      flavorGroups = [{ name: '辣度', options: ['不辣', '微辣', '中辣', '重辣'] }];
-    }
-
+    const flavors = dish.flavors || [];
     let flavorHTML = '';
-    if (flavorGroups.length > 0) {
-      flavorHTML = flavorGroups.map((group) => `
-        <div class="modal-section-title">选择${group.name}</div>
-        <div class="flavor-list" data-flavor-name="${group.name}">
-          ${group.options.map((opt, i) => `<div class="flavor-item${i === 0 ? ' selected' : ''}" data-flavor="${opt}">${opt}</div>`).join('')}
-        </div>
-      `).join('');
+    if (flavors.length > 0) {
+      flavorHTML = `
+        <div class="modal-section-title">选择口味</div>
+        <div class="flavor-list">
+          ${flavors.map((f, i) => `<div class="flavor-item${i === 0 ? ' selected' : ''}" data-flavor="${f.value}">${f.value || f.name}</div>`).join('')}
+        </div>`;
     }
 
     const html = `
@@ -264,16 +244,15 @@
       </div>`;
     openModal(html);
 
-    // 口味选择事件：每个 flavor-list 组内互斥
-    $$('.flavor-list').forEach((list) => {
-      const items = list.querySelectorAll('.flavor-item');
-      items.forEach((el) => {
+    // 口味选择事件
+    if (flavors.length > 0) {
+      $$('.flavor-item').forEach((el) => {
         el.addEventListener('click', () => {
-          items.forEach((e) => e.classList.remove('selected'));
+          $$('.flavor-item').forEach((e) => e.classList.remove('selected'));
           el.classList.add('selected');
         });
       });
-    });
+    }
   }
 
   async function showSetmealDetail(setmealId) {
@@ -281,15 +260,12 @@
     if (!sm) return;
 
     // 加载套餐内菜品
-    let dishListHTML = '';
-    let flavorOptionsHTML = '';
+    let innerDishesHTML = '<div class="modal-section-title">套餐内容</div><div class="setmeal-dish-list">';
     try {
       const res = await apiGetSetmealDishes(setmealId);
       if (res.code === 1 && res.data && res.data.length > 0) {
-        // 菜品列表
-        dishListHTML = '<div class="modal-section-title">套餐内容</div><div class="setmeal-dish-list">';
         res.data.forEach((sd) => {
-          dishListHTML += `
+          innerDishesHTML += `
             <div class="setmeal-dish-item">
               ${getImageOnly(sd.image, 'setmeal-dish-img', '')}
               <div class="setmeal-dish-info">
@@ -299,33 +275,13 @@
               <div class="setmeal-dish-count">×${sd.copies || 1}</div>
             </div>`;
         });
-        dishListHTML += '</div>';
-
-        // 口味选项（独立区域）
-        let hasFlavors = false;
-        res.data.forEach((sd) => {
-          const dish = state.dishes.find((d) => d.id === sd.dishId);
-          const flavors = dish && dish.flavors ? dish.flavors : [];
-          if (flavors.length > 0) {
-            hasFlavors = true;
-            flavorOptionsHTML += `
-              <div class="setmeal-option-group" data-dish-id="${sd.dishId}" data-dish-name="${sd.name}">
-                <div class="setmeal-option-label">${sd.name}</div>
-                <div class="flavor-list">
-                  ${flavors.map((f, i) => `<div class="flavor-item${i === 0 ? ' selected' : ''}" data-flavor="${f.value || f.name}">${f.value || f.name}</div>`).join('')}
-                </div>
-              </div>`;
-          }
-        });
-        if (hasFlavors) {
-          flavorOptionsHTML = `<div class="modal-section-title">套餐选项</div><div class="setmeal-options-area">${flavorOptionsHTML}</div>`;
-        }
       } else {
-        dishListHTML = '<div style="font-size:13px;color:#999;padding:12px 0;">暂无套餐菜品信息</div>';
+        innerDishesHTML += '<div style="font-size:13px;color:#999;">暂无套餐菜品信息</div>';
       }
     } catch (e) {
-      dishListHTML = '<div style="font-size:13px;color:#999;padding:12px 0;">加载失败</div>';
+      innerDishesHTML += '<div style="font-size:13px;color:#999;">加载失败</div>';
     }
+    innerDishesHTML += '</div>';
 
     const html = `
       <div class="modal-img-wrapper">
@@ -336,48 +292,16 @@
         <div class="modal-name">${sm.name}</div>
         <div class="modal-desc">${sm.description || ''}</div>
         <div class="modal-price">${formatPrice(sm.price)}</div>
-        ${dishListHTML}
-        ${flavorOptionsHTML}
+        ${innerDishesHTML}
         <button class="btn-primary" onclick="window._addSetmealToCart(${sm.id})">加入购物车</button>
       </div>`;
     openModal(html);
-
-    // 套餐选项口味选择事件
-    $$('.setmeal-option-group .flavor-item').forEach((el) => {
-      el.addEventListener('click', () => {
-        const parent = el.parentElement;
-        parent.querySelectorAll('.flavor-item').forEach((e) => e.classList.remove('selected'));
-        el.classList.add('selected');
-      });
-    });
   }
-
-  // 催单
-  window._handleReminder = async function (orderId) {
-    try {
-      const res = await apiReminder(orderId);
-      if (res.code === 1) {
-        toast('已催单，店家正在加急处理中');
-      } else {
-        toast(res.msg || '催单失败');
-      }
-    } catch (e) {
-      toast('网络错误');
-    }
-  };
 
   // 暴露到全局，供弹窗按钮调用
   window._addDishToCart = async function (dishId) {
-    // 收集每个口味分组的选中项，格式：辣度:微辣; 忌口:不要葱
-    const flavorParts = [];
-    $$('.flavor-list').forEach((list) => {
-      const selected = list.querySelector('.flavor-item.selected');
-      if (selected) {
-        const groupName = list.dataset.flavorName;
-        flavorParts.push(`${groupName}:${selected.dataset.flavor}`);
-      }
-    });
-    const flavor = flavorParts.join('; ');
+    const selected = document.querySelector('.flavor-item.selected');
+    const flavor = selected ? selected.dataset.flavor : '';
     try {
       const res = await apiAddToCart({ dishId, setmealId: null, dishFlavor: flavor });
       if (res.code === 1) {
@@ -393,20 +317,8 @@
   };
 
   window._addSetmealToCart = async function (setmealId) {
-    // 收集套餐内各菜品的口味选择
-    const flavorParts = [];
-    $$('.setmeal-option-group').forEach((group) => {
-      const selected = group.querySelector('.flavor-item.selected');
-      if (selected) {
-        const dishName = group.dataset.dishName;
-        flavorParts.push(`${dishName}:${selected.dataset.flavor}`);
-      }
-    });
-    const dishFlavor = flavorParts.join('; ');
     try {
-      const body = { dishId: null, setmealId };
-      if (dishFlavor) body.dishFlavor = dishFlavor;
-      const res = await apiAddToCart(body);
+      const res = await apiAddToCart({ dishId: null, setmealId });
       if (res.code === 1) {
         toast('已加入购物车');
         closeModal();
@@ -484,7 +396,7 @@
               ${imgHTML}
               <div class="cart-item-info">
                 <div class="cart-item-name">${item.name}</div>
-                ${item.dishFlavor ? `<div class="cart-item-flavor">${item.dishFlavor.split('; ').map(f => '<span>' + f + '</span>').join('')}</div>` : ''}
+                ${item.dishFlavor ? `<div class="cart-item-flavor">口味：${item.dishFlavor}</div>` : ''}
               </div>
               <div class="cart-item-amount">${formatPrice(subtotal)}</div>
               <div class="cart-item-actions">
@@ -601,10 +513,13 @@
     try {
       const res = await apiSubmitOrder(orderData);
       if (res.code === 1) {
-        // 保存订单信息，跳转 KBZPay 支付
-        state.pendingOrder = res.data || {};
-        state.pendingAmount = totalAmount;
-        startKBZPayPayment(totalAmount);
+        toast('下单成功！');
+        // 清空购物车
+        await apiClearCart();
+        state.cart = [];
+        updateCartBadge();
+        showPage('orders');
+        loadOrders();
       } else {
         toast(res.msg || '下单失败');
       }
@@ -613,288 +528,7 @@
     }
   }
 
-  // ===== KBZPay 支付 =====
-  let kbzpayTimer = null;
-
-  function startKBZPayPayment(amount) {
-    showPage('kbzpay');
-    $('#kbzpay-amount').textContent = formatPrice(amount);
-    $('#kbzpay-qr-section').style.display = 'block';
-    $('#kbzpay-sim-section').style.display = 'none';
-    $('#kbzpay-success-section').style.display = 'none';
-    $('#btn-kbzpay-confirm').style.display = 'none';
-    $('#btn-kbzpay-cancel').style.display = 'block';
-    $('#btn-kbzpay-done').style.display = 'none';
-
-    // 倒计时 5 分钟
-    let seconds = 300;
-    const timerEl = $('#kbzpay-timer');
-    const updateTimer = () => {
-      const m = Math.floor(seconds / 60);
-      const s = seconds % 60;
-      timerEl.textContent = `剩余 ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    };
-    updateTimer();
-
-    kbzpayTimer = setInterval(() => {
-      seconds--;
-      updateTimer();
-      if (seconds <= 300) {
-        // 1 分钟后显示模拟确认按钮
-        $('#btn-kbzpay-confirm').style.display = 'block';
-      }
-      if (seconds <= 0) {
-        clearInterval(kbzpayTimer);
-        kbzpayTimer = null;
-        timerEl.textContent = '二维码已过期';
-        toast('支付超时，请重新下单');
-      }
-    }, 1000);
-  }
-
-  function handleKBZPayConfirm() {
-    if (kbzpayTimer) {
-      clearInterval(kbzpayTimer);
-      kbzpayTimer = null;
-    }
-
-    // 显示处理中
-    $('#kbzpay-qr-section').style.display = 'none';
-    $('#kbzpay-sim-section').style.display = 'block';
-    $('#btn-kbzpay-confirm').style.display = 'none';
-    $('#btn-kbzpay-cancel').style.display = 'none';
-
-    // 模拟支付处理 2 秒
-    setTimeout(async () => {
-      // 调用后端支付接口（修复：传订单号 orderNumber 而非主键 id）
-      const orderNumber = state.pendingOrder.orderNumber || state.pendingOrder.id || '';
-      if (orderNumber) {
-        try {
-          await apiSimulatePay(orderNumber);
-        } catch (e) {
-          // 即使后端接口出错也模拟成功（演示模式）
-          console.warn('支付接口调用失败，模拟支付成功:', e);
-        }
-      }
-
-      // 显示支付成功
-      $('#kbzpay-sim-section').style.display = 'none';
-      $('#kbzpay-success-section').style.display = 'block';
-      $('#kbzpay-success-amount').textContent = formatPrice(state.pendingAmount);
-      $('#btn-kbzpay-done').style.display = 'block';
-
-      // 清空购物车
-      try {
-        await apiClearCart();
-        state.cart = [];
-        updateCartBadge();
-      } catch (e) {
-        // 静默失败
-      }
-    }, 2000);
-  }
-
-  function handleKBZPayCancel() {
-    if (kbzpayTimer) {
-      clearInterval(kbzpayTimer);
-      kbzpayTimer = null;
-    }
-    toast('已取消支付');
-    showPage('checkout');
-  }
-
-  function handleKBZPayDone() {
-    const orderId = state.pendingOrder.orderNumber || state.pendingOrder.id || '';
-    loadOrderDetail(orderId);
-    showPage('order-detail');
-    state.pendingOrder = null;
-    state.pendingAmount = 0;
-  }
-
-  // ===== 配送状态映射 =====
-  function getDeliveryStatusLabel(status) {
-    const map = { 1: '待付款', 2: '待接单', 3: '已接单', 4: '派送中', 5: '已完成', 6: '已取消' };
-    return map[status] || '未知';
-  }
-
-  function getDeliverySteps(order) {
-    const status = order.status || 1;
-    const steps = [
-      { key: 1, title: '已下单', time: order.orderTime || '', desc: '订单已提交' },
-      { key: 2, title: '已付款', time: order.payTime || '', desc: 'KBZPay 支付成功' },
-      { key: 3, title: '商家接单', time: order.acceptTime || '', desc: '商家已确认订单' },
-      { key: 4, title: '骑手取餐', time: order.pickupTime || '', desc: '骑手已到店取餐' },
-      { key: 5, title: '配送中', time: order.deliveryTime || '', desc: '骑手正在配送途中' },
-      { key: 6, title: '已送达', time: order.deliverTime || '', desc: '订单已送达，请享用' },
-    ];
-
-    // 根据实际订单状态标记步骤
-    // 状态 1:待付款 → 只有第1步 done
-    // 状态 2:待接单 → 第1-2步 done
-    // 状态 3:已接单 → 第1-3步 done
-    // 状态 4:派送中 → 第1-5步 done
-    // 状态 5:已完成 → 全部 done
-    // 状态 6:已取消 → 只显示第1步，标记为取消
-    const statusToStepMap = { 1: 1, 2: 2, 3: 3, 4: 5, 5: 6, 6: 0 };
-    const activeStep = statusToStepMap[status] || 1;
-
-    return steps.map((step, i) => {
-      if (status === 6) {
-        if (i === 0) return { ...step, state: 'done' };
-        return null;
-      }
-      if (i < activeStep) return { ...step, state: 'done' };
-      if (i === activeStep) return { ...step, state: 'active' };
-      return { ...step, state: 'pending' };
-    }).filter(Boolean);
-  }
-
-  function getStatusLabel(status) {
-    const map = { 1: '待付款', 2: '待接单', 3: '已接单', 4: '派送中', 5: '已完成', 6: '已取消' };
-    return map[status] || '未知';
-  }
-
-  // ===== 订单详情 =====
-  async function loadOrderDetail(orderId) {
-    try {
-      const res = await apiGetOrders(1, 20, '');
-      let order = null;
-      if (res.code === 1 && res.data) {
-        const orders = res.data.records || res.data || [];
-        order = orders.find(o => (o.id === orderId || o.number === String(orderId)));
-      }
-      if (order) {
-        state.currentOrderDetail = order;
-      } else {
-        order = state.currentOrderDetail || state.pendingOrder;
-      }
-      if (!order) {
-        $('#order-detail-content').innerHTML = '<div class="empty-state">订单不存在</div>';
-        return;
-      }
-      renderOrderDetail(order);
-      startDeliverySimulation(order);
-    } catch (e) {
-      $('#order-detail-content').innerHTML = '<div class="empty-state">加载失败</div>';
-    }
-  }
-
-  function renderOrderDetail(order) {
-    const status = order.status || 1;
-    const steps = getDeliverySteps(order);
-    const orderNo = order.number || order.id || '';
-
-    let stepHTML = steps.map(s => `
-      <div class="delivery-step ${s.state}">
-        <div class="delivery-step-dot"></div>
-        <div class="delivery-step-content">
-          <div class="delivery-step-title">${s.title}</div>
-          ${s.time ? `<div class="delivery-step-time">${s.time}</div>` : ''}
-          ${s.desc ? `<div class="delivery-step-desc">${s.desc}</div>` : ''}
-        </div>
-      </div>
-    `).join('');
-
-    let actionHTML = '';
-    if (status === 1) {
-      actionHTML = `<button class="order-detail-pay-btn" onclick="window._goPayFromDetail()">去支付 (KBZPay)</button>`;
-    } else if (status >= 2 && status < 5) {
-      actionHTML = `<button class="btn-sim-delivery" onclick="window._simDeliveryStep()">模拟配送推进</button>`;
-    }
-    if (status === 2 || status === 3) {
-      actionHTML += `<button class="btn-reminder" data-order-id="${order.id}" style="margin-top:8px;padding:8px 16px;background:#FF9800;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;display:block;" onclick="event.stopPropagation(); window._handleReminder(${order.id})">催单</button>`;
-    }
-
-    const html = `
-      <div class="order-detail-card">
-        <div class="order-detail-row">
-          <span class="order-detail-label">订单编号</span>
-          <span class="order-detail-value">${orderNo}</span>
-        </div>
-        <div class="order-detail-row">
-          <span class="order-detail-label">订单状态</span>
-          <span class="order-status status-${status}">${getDeliveryStatusLabel(status)}</span>
-        </div>
-        <div class="order-detail-row">
-          <span class="order-detail-label">订单金额</span>
-          <span class="order-detail-value order-detail-amount">${formatPrice(order.amount)}</span>
-        </div>
-        <div class="order-detail-row">
-          <span class="order-detail-label">下单时间</span>
-          <span class="order-detail-value">${order.orderTime || order.createTime || ''}</span>
-        </div>
-      </div>
-
-      <div class="order-detail-card delivery-section">
-        <div class="delivery-section-title">配送进度</div>
-        <div class="delivery-progress">
-          ${stepHTML}
-        </div>
-        ${actionHTML}
-      </div>
-    `;
-
-    $('#order-detail-content').innerHTML = html;
-  }
-
-  // 配送模拟
-  let deliverySimTimer = null;
-
-  function startDeliverySimulation(order) {
-    if (deliverySimTimer) {
-      clearInterval(deliverySimTimer);
-      deliverySimTimer = null;
-    }
-    // 不自动模拟，改为用户手动点击推进
-  }
-
-  window._goPayFromDetail = function () {
-    const order = state.currentOrderDetail;
-    if (order && (order.status === 1)) {
-      state.pendingOrder = order;
-      state.pendingAmount = order.amount;
-      startKBZPayPayment(order.amount);
-    }
-  };
-
-  window._simDeliveryStep = async function () {
-    const order = state.currentOrderDetail;
-    if (!order) return;
-    const currentStatus = order.status || 1;
-    let newStatus = currentStatus;
-
-    if (currentStatus === 2) newStatus = 3;       // 待接单 → 已接单
-    else if (currentStatus === 3) newStatus = 4;   // 已接单 → 派送中
-    else if (currentStatus === 4) newStatus = 5;   // 派送中 → 已完成
-    else {
-      toast('当前状态无法模拟推进');
-      return;
-    }
-
-    // 通过支付/催单接口模拟状态变更（使用催单接口不会真的催单，只做模拟）
-    try {
-      const orderId = order.id || order.number || '';
-      // 尝试调用支付接口模拟状态变更
-      await apiSimulatePay(orderId);
-    } catch (e) {
-      // 忽略
-    }
-
-    // 本地更新状态
-    order.status = newStatus;
-    const now = new Date();
-    const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-    if (newStatus === 3) order.acceptTime = timeStr;
-    if (newStatus === 4) order.deliveryTime = timeStr;
-    if (newStatus === 5) order.deliverTime = timeStr;
-
-    renderOrderDetail(order);
-
-    const labels = { 3: '商家已接单', 4: '骑手已取餐，正在派送中', 5: '订单已送达' };
-    toast(labels[newStatus] || '状态已更新');
-  };
-
-  // ===== 订单列表 =====
+  // ===== 地址管理 =====
   async function loadCheckoutAddresses() {
     try {
       const res = await apiGetAddresses();
@@ -925,9 +559,7 @@
         </div>
         ${a.isDefault === 1 ? '<span class="address-card-tag">默认</span>' : ''}
       </div>
-    `).join('') + `
-      <div class="checkout-add-addr" id="btn-checkout-add-addr">+ 新增地址</div>
-    `;
+    `).join('');
     $$('.checkout-addr').forEach(el => {
       el.addEventListener('click', () => {
         const id = Number(el.dataset.addrId);
@@ -977,7 +609,7 @@
     `).join('');
   }
 
-  function showAddressForm(address, fromCheckout) {
+  function showAddressForm(address) {
     if (address) {
       $('#address-form-title').textContent = '编辑地址';
       $('#addr-edit-id').value = address.id;
@@ -995,7 +627,6 @@
       $('#addr-detail').value = '';
       $('#addr-label').value = '';
     }
-    state.addrFromCheckout = !!fromCheckout;
     showPage('address-form');
   }
 
@@ -1024,14 +655,8 @@
       }
       if (res.code === 1) {
         toast(id ? '地址已更新' : '地址已添加');
-        if (!id && state.addrFromCheckout) {
-          state.addrFromCheckout = false;
-          showPage('checkout');
-          loadCheckoutAddresses();
-        } else {
-          showPage('address');
-          loadAddresses();
-        }
+        showPage('address');
+        loadAddresses();
       } else {
         toast(res.msg || '操作失败');
       }
@@ -1097,31 +722,18 @@
         const orderNo = order.number || order.id || '';
         const orderTime = order.orderTime || order.createTime || '';
         return `
-          <div class="order-item" data-order-id="${order.id}" data-order-no="${orderNo}" style="cursor:pointer;">
+          <div class="order-item">
             <div class="order-header">
               <div class="order-no">订单号：${orderNo}</div>
-              <div class="order-status status-${status}">${getDeliveryStatusLabel(status)}</div>
+              <div class="order-status status-${status}">${getStatusLabel(status)}</div>
             </div>
             <div class="order-info">
               <div class="order-amount">${formatPrice(order.amount)}</div>
               <div class="order-time">${orderTime}</div>
             </div>
-            ${status === 2 || status === 3 ? `<button class="btn-reminder" data-order-id="${order.id}" style="margin-top:8px;padding:6px 14px;background:#FF9800;color:#fff;border:none;border-radius:4px;font-size:13px;cursor:pointer;" onclick="event.stopPropagation(); window._handleReminder(${order.id})">催单</button>` : ''}
           </div>`;
       })
       .join('');
-
-    // 绑定订单点击事件
-    $$('.order-item').forEach((el) => {
-      el.addEventListener('click', () => {
-        const orderId = el.dataset.orderId;
-        state.currentOrderDetail = state.currentOrders.find(
-          o => String(o.id) === orderId || String(o.number) === el.dataset.orderNo
-        );
-        loadOrderDetail(orderId);
-        showPage('order-detail');
-      });
-    });
   }
 
   // ===== 事件委托 =====
@@ -1185,24 +797,6 @@
     // 确认下单
     if (e.target.id === 'btn-submit-order') {
       handleSubmitOrder();
-      return;
-    }
-
-    // KBZPay 确认支付
-    if (e.target.id === 'btn-kbzpay-confirm') {
-      handleKBZPayConfirm();
-      return;
-    }
-
-    // KBZPay 取消支付
-    if (e.target.id === 'btn-kbzpay-cancel') {
-      handleKBZPayCancel();
-      return;
-    }
-
-    // KBZPay 支付完成查看订单
-    if (e.target.id === 'btn-kbzpay-done') {
-      handleKBZPayDone();
       return;
     }
 
@@ -1278,8 +872,8 @@
     }
 
     // 结算页：点击添加地址
-    if (e.target.id === 'checkout-no-address' || e.target.id === 'btn-checkout-add-addr') {
-      showAddressForm(null, true);
+    if (e.target.id === 'checkout-no-address') {
+      showAddressForm(null);
       return;
     }
   });

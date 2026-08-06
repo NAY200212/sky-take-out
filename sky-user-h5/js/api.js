@@ -48,7 +48,7 @@ function apiLogin(nickname) {
 
 // ===== 2. 分类列表 =====
 function apiGetCategories() {
-  return request('/user/category/list');
+  return request('/user/category/list?type=1');
 }
 
 // ===== 3. 菜品列表 =====
@@ -140,25 +140,5 @@ function apiSetDefaultAddress(body) {
   return request('/user/addressBook/default', {
     method: 'PUT',
     body: JSON.stringify(body),
-  });
-}
-
-// ===== 13. KBZPay 模拟支付 =====
-function apiSimulatePay(orderId) {
-  return request('/user/order/payment', {
-    method: 'PUT',
-    body: JSON.stringify({ orderNumber: String(orderId), payMethod: 1 }),
-  });
-}
-
-// ===== 14. 催单 =====
-function apiReminder(orderId) {
-  return request(`/user/order/reminder/${orderId}`);
-}
-
-// ===== 15. 再来一单 =====
-function apiRepurchase(orderId) {
-  return request(`/user/order/repetition/${orderId}`, {
-    method: 'POST',
   });
 }
